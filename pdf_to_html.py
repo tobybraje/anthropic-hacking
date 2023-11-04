@@ -113,7 +113,7 @@ def pdf_to_html(pdf_filename, common_subheads=common_subheadings):
     html_str = str(soup.prettify())
 
     # Merge consecutive h1 tags
-    html_str = re.sub(r'</h1>\s*<div>\s*<h1>', ' ', html_str)
+    html_str = re.sub(r'</h1>\s*</div>\s*<div>\s*<h1>', ' ', html_str)
 
     # Merge hyphenated words that span across lines
     html_str = re.sub(r'(\w+)-\s+(\w+)', r'\1\2', html_str)
