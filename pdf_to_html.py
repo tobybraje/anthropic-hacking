@@ -1,12 +1,35 @@
-import sys
+import sys, os, re
 from pdfminer.layout import LAParams, LTTextBox
 from pdfminer.pdfpage import PDFPage
 from pdfminer.pdfinterp import PDFResourceManager
 from pdfminer.pdfinterp import PDFPageInterpreter
 from pdfminer.converter import PDFPageAggregator
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+from logger import logging
+
+load_dotenv()
+logger = logging.getLogger('app.embedding')
+
+# Define your top headings and common subheadings here
+common_subheadings = [
+    "Diagnostic Criteria",
+    "Recording Procedures",
+    "Diagnostic Features",
+    "Prevalence",
+    "Comorbidity",
+    "Differential Diagnosis",
+    "Gender-Related Diagnostic Issues",
+    "Cuiture-Reiated Diagnostic Issues",
+    "Risk and Prognostic Factors",
+    "Development and Course",
+    "Associated Features Supporting Diagnosis",
+]
+
 
 def extract_with_style(pdf_filename):
+    logger.debug('Extracting data from PDF')
+    
     resource_manager = PDFResourceManager()
     la_params = LAParams()
     device = PDFPageAggregator(resource_manager, laparams=la_params)
@@ -14,7 +37,7 @@ def extract_with_style(pdf_filename):
 
     extracted_data = []
 
-    with open(pdf_filename, 'rb') as f:
+    with open(pdf_filename, "rb") as f:
         for page in PDFPage.get_pages(f):
             interpreter.process_page(page)
             layout = device.get_result()
@@ -27,7 +50,10 @@ def extract_with_style(pdf_filename):
 
     return extracted_data
 
-def pdf_to_html(pdf_filename, common_subheadings):
+
+def pdf_to_html(pdf_filename, common_subheads=common_subheadings):
+    logger.debug('Converting PDF to HTML')
+
     data_with_style = extract_with_style(pdf_filename)
 
     # Getting the unique font sizes and sorting them
@@ -39,49 +65,70 @@ def pdf_to_html(pdf_filename, common_subheadings):
     html = soup.new_tag("html")
     head = soup.new_tag("head")
     title = soup.new_tag("title")
-    title.string = "Converted PDF"
+    title.string = "DSM-5 HTML"
     head.append(title)
     html.append(head)
     body = soup.new_tag("body")
     html.append(body)
 
+    div = soup.new_tag("div")  # Initialize div
+    p_text = ""  # Initialize paragraph text
+
     # Iterate through extracted data to convert to HTML
     for text, size in data_with_style:
-        if size == unique_font_sizes[0]:  # Largest font size for h1
-            h1 = soup.new_tag("h1")
-            h1.string = text
-            body.append(h1)
-        elif size == unique_font_sizes[1]:  # Second largest font size for h2
-            h2 = soup.new_tag("h2")
-            h2.string = text
-            body.append(h2)
-        elif text in common_subheadings:
-            h3 = soup.new_tag("h3")
-            h3.string = text
-            body.append(h3)
+        if '----' in text:
+            continue
+        if size in unique_font_sizes[:2] or text in common_subheads:  # Just doing this way to avoid repeating p_text stuff
+            if p_text:  # Add remaining paragraph text to div before starting new heading
+                p = soup.new_tag("p")
+                p.string = p_text
+                div.append(p)
+                p_text = ""
+
+            if size == unique_font_sizes[0]:  # Largest font size for h1
+                div = soup.new_tag("div")  # Create a new div for each h1
+                h1 = soup.new_tag("h1")
+                h1.string = text
+                div.append(h1)  # Append h1 to div
+                body.append(div)  # Append div to body
+            elif size == unique_font_sizes[1]:  # Second largest font size for h2
+                h2 = soup.new_tag("h2")
+                h2.string = text
+                div.append(h2)  # Append h2 to the current div
+            else:  # If the line is a common subheading
+                h3 = soup.new_tag("h3")
+                h3.string = text
+                div.append(h3)  # Append h3 to the current div
         else:
-            p = soup.new_tag("p")
-            p.string = text
-            body.append(p)
+            re.sub(r'.+- ', '', text)
+            p_text += " " + text  # Concatenate normal text lines
+
+    # Add remaining paragraph text to div
+    if p_text:
+        p = soup.new_tag("p")
+        p.string = p_text
+        div.append(p)
 
     soup.append(html)
+    html_str = str(soup.prettify())
 
-    return str(soup.prettify())
+    # Merge consecutive h1 tags
+    html_str = re.sub(r'</h1>\s*<div>\s*<h1>', ' ', html_str)
+
+    # Merge hyphenated words that span across lines
+    html_str = re.sub(r'(\w+)-\s+(\w+)', r'\1\2', html_str)
+
+    # Merge consecutive h1 tags
+    return html_str
+
+
+def convert_pdf_to_html(pdf_filename=os.getenv("DSM-PATH", "./DSM-5.pdfq")):
+    html_content = pdf_to_html(pdf_filename)
+    with open('output.html', "w+", encoding="utf-8") as f:
+        f.write(html_content)
+
+    logger.info('HTML content saved')
 
 
 if __name__ == "__main__":
-    # Hardcoded PDF and HTML filenames
-    pdf_filename = "/Users/aaliyamanji/anthropic/anthropic-hacking/DSM-5_test.pdf"
-    html_filename = "output.html"
-
-    # Define your top headings and common subheadings here
-    common_subheadings = ['Diagnostic Criteria', 'Recording Procedures', 'Diagnostic Features', 'Prevalence', 'Comorbidity', 'Differential Diagnosis',
-    'Gender-Related Diagnostic Issues', 'Cuiture-Reiated Diagnostic Issues', 'Risk and Prognostic Factors', 'Development and Course',
-    'Associated Features Supporting Diagnosis']
-
-    html_content = pdf_to_html(pdf_filename, common_subheadings)
-
-    with open(html_filename, 'w+', encoding='utf-8') as f:
-        f.write(html_content)
-
-    print(f"HTML content saved to {html_filename}")
+    convert_pdf_to_html()
