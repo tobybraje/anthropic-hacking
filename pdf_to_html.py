@@ -122,7 +122,7 @@ def pdf_to_html(pdf_filename, common_subheads=common_subheadings):
     return html_str
 
 
-def convert_pdf_to_html(pdf_filename=os.getenv("DSM-PATH", "./DSM-5.pdfq")):
+def convert_pdf_to_html(pdf_filename=os.getenv("DSM_PATH", "./DSM-5.pdf")):
     html_content = pdf_to_html(pdf_filename)
     with open('output.html', "w+", encoding="utf-8") as f:
         f.write(html_content)
