@@ -2,6 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from schemas import ChatPrompt
 from utils import generate_response
+from logger import logging
+
+logger = logging.getLogger('app')
 
 app = FastAPI()
 
