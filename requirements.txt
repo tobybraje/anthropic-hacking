@@ -1,1 +1,2 @@
 fastapi==0.103.1
+langchain==0.0.330
