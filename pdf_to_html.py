@@ -124,7 +124,8 @@ def pdf_to_html(pdf_filename, common_subheads=common_subheadings):
 
 def convert_pdf_to_html(pdf_filename=os.getenv("DSM_PATH", "./DSM-5.pdf")):
     html_content = pdf_to_html(pdf_filename)
-    with open('output.html', "w+", encoding="utf-8") as f:
+    out_name = f'output{"_test" if "test" in pdf_filename else ""}.html'
+    with open(out_name, "w+", encoding="utf-8") as f:
         f.write(html_content)
 
     logger.info('HTML content saved')
