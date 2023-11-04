@@ -1,11 +1,9 @@
 import os
 
 from pydantic_settings import BaseSettings
+import dotenv
 
-if not os.environ.get("PRODUCTION"):
-    import dotenv
-
-    dotenv.load_dotenv(dotenv.find_dotenv())
+dotenv.load_dotenv(dotenv.find_dotenv())
 
 
 class Settings(BaseSettings):
