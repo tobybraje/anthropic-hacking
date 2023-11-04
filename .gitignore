@@ -2,3 +2,4 @@ DSM-5.pdf
 .venv/
 .DS_Store
 .env
+.vscode
