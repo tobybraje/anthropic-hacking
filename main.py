@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from schemas import ChatPrompt
+from utils import generate_response
 
 app = FastAPI()
 
@@ -18,5 +20,5 @@ app.add_middleware(
 
 
 @app.post("/")
-async def prompt():
-    return {"response": "hello world"}
+async def prompt(prompt: ChatPrompt):
+    return {"response": generate_response(prompt.messages)}
