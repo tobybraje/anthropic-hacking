@@ -12,6 +12,9 @@ from logger import logging
 from langchain.text_splitter import HTMLHeaderTextSplitter
 import string
 import pickle
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.vectorstores import Chroma
+from settings import settings
 
 # # Define your top headings and common subheadings here
 # common_subheadings = (
@@ -37,9 +40,9 @@ font_thresholds = {
     "rest": float(os.getenv('THRESH_REST', 0))
     }
 
-
 load_dotenv()
 logger = logging.getLogger('app.embedding')
+EMBEDDINGS = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
 # Load in NLTK words if needed
 nltk.download('words')
@@ -65,7 +68,7 @@ def check_gibberish(text_block, threshold=int(os.getenv('GIB_THRESH', 3))) -> bo
 
 def extract_with_style(pdf_filename): # FIXME this is taking the bulk of the time
     logger.debug('Extracting data from PDF')
-    
+
     resource_manager = PDFResourceManager()
     la_params = LAParams()
     device = PDFPageAggregator(resource_manager, laparams=la_params)
@@ -187,12 +190,12 @@ def pdf_to_html(pdf_filename):
 
 def chunk_html(html_content):
     logger.debug('Chunking HTML')
-    html_splitter = HTMLHeaderTextSplitter(headers_to_split_on=[("h1", "Header 1"), ("h2", "Header 2"), ("h3", "Header 3")])
+    html_splitter = HTMLHeaderTextSplitter(headers_to_split_on=[("h1", "Disorder"), ("h2", "Sub-Disorder"), ("h3", "Subject"), ("h4", "Identifier Code")])
     chunks = html_splitter.split_text(html_content)
     return chunks
 
 
-def convert_pdf_to_html(pdf_filename=os.getenv("DSM_PATH", "./DSM-5.pdf")):
+def convert_pdf_to_html(pdf_filename=settings.DSM_PATH):
     html_content = pdf_to_html(pdf_filename)
     out_name = f'output{"_test" if "test" in pdf_filename else ""}.html'
     with open(out_name, "w+", encoding="utf-8") as f:
@@ -204,9 +207,10 @@ def convert_pdf_to_html(pdf_filename=os.getenv("DSM_PATH", "./DSM-5.pdf")):
     chunks = chunk_html(html_content)
     logger.debug(f'Created {len(chunks)} chunks')
     for chunk in chunks:
-        print(chunk.page_content[:30])
-        print(chunk.metadata)
-        print("BREAK")
+        if not chunk.metadata:
+            chunks.remove(chunk)
+
+    db = Chroma.from_documents(chunks, EMBEDDINGS, persist_directory="./chroma_db")
 
     logger.info('HTML content saved')
 

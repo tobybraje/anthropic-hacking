@@ -13,6 +13,7 @@ function App() {
   };
 
   const addAssistantMessage = async () => {
+    setMessages([...messages, { role: "assistant", content: "Thinking..." }]);
     let responseContent = await getApiResponse(messages);
     setMessages([...messages, { role: "assistant", content: responseContent }]);
   };

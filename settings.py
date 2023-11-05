@@ -7,7 +7,8 @@ dotenv.load_dotenv(dotenv.find_dotenv())
 
 
 class Settings(BaseSettings):
-    CLAUDE_API_KEY: str
+    ANTHROPIC_API_KEY: str
+    DSM_PATH: str
 
 
 settings = Settings()
