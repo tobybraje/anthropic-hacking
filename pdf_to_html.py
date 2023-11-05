@@ -7,6 +7,7 @@ from pdfminer.converter import PDFPageAggregator
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from logger import logging
+from langchain.text_splitter import HTMLHeaderTextSplitter
 
 load_dotenv()
 logger = logging.getLogger('app.embedding')
@@ -122,11 +123,24 @@ def pdf_to_html(pdf_filename, common_subheads=common_subheadings):
     return html_str
 
 
-def convert_pdf_to_html(pdf_filename=os.getenv("DSM_PATH", "./DSM-5.pdf")):
+def chunk_html(html_content):
+    html_splitter = HTMLHeaderTextSplitter(headers_to_split_on=[("h1", "Header 1"), ("h2", "Header 2"), ("h3", "Header 3")])
+    chunks = html_splitter.split_text(html_content)
+    return chunks
+
+
+def convert_pdf_to_html(pdf_filename="DSM-5_test.pdf"):
     html_content = pdf_to_html(pdf_filename)
     out_name = f'output{"_test" if "test" in pdf_filename else ""}.html'
     with open(out_name, "w+", encoding="utf-8") as f:
         f.write(html_content)
+
+    chunks = chunk_html(html_content)
+    print(len(chunks))
+    for chunk in chunks:
+        print(chunk.page_content[:30])
+        print(chunk.metadata)
+        print("BREAK")
 
     logger.info('HTML content saved')
 
