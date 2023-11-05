@@ -28,7 +28,36 @@ common_subheadings = [
 ]
 
 
-def extract_with_style(pdf_filename):
+
+load_dotenv()
+logger = logging.getLogger('app.embedding')
+
+# Load in NLTK words if needed
+nltk.download('words')
+word_list = set(words.words())
+allowed_letters = {'a', 'i'} # "Real" single letter words
+blacklist_words = {'jo',}
+
+def check_gibberish(text_block, threshold=int(os.getenv('GIB_THRESH', 3))) -> bool: # Return true if all words ARE gibberish
+    words = text_block.split()
+    # Adjust threshold to text size if needed
+    real_thresh = min(threshold, len(words)//2) # Need //2 as checking from both ends
+    
+    if len(words[-1]) == 1: # If the last "word" is a single letter, still gibberish ("a" and "i" never come at end of sentence)
+        return True    
+
+    # Check first and last threshold number of words (if enough words) are all "real" words
+    for word in words[:real_thresh]+words[-real_thresh:]:
+        word = word.translate(str.maketrans('', '', string.punctuation)) # Strips out punctuation (which should be allowed)
+        if word.lower() in blacklist_words: # Manual blacklist
+            return True
+        if len(word) == 1 and word.lower() not in allowed_letters: # (NLTK allows single letters)
+            return True
+        if word.lower() not in word_list and not re.match(r"\(\w+\d+\)", word): # If word is not real / is an allowed struct (F90), then it isnt gibberish
+            return True
+    return False
+
+def extract_with_style(pdf_filename): # FIXME this is taking the bulk of the time
     logger.debug('Extracting data from PDF')
     
     resource_manager = PDFResourceManager()
